@@ -4,3 +4,4 @@ version = "0.1.0"
 authors = ["Peter Maydell <pmaydell@chiark.greenend.org.uk>"]
 
 [dependencies]
+select = "~0"
