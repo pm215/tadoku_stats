@@ -5,3 +5,4 @@ authors = ["Peter Maydell <pmaydell@chiark.greenend.org.uk>"]
 
 [dependencies]
 select = "~0"
+regex = "~0"
