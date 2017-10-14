@@ -7,8 +7,11 @@
 // License: GPLv2-or-later.
 
 extern crate select;
+extern crate regex;
+
 use select::document::Document;
 use select::predicate::{Predicate, Class, Name};
+use regex::Regex;
 
 use std::collections::HashMap;
 
@@ -54,6 +57,7 @@ fn parse_mainpage(document: Document) -> Vec<String> {
 struct UserInfo {
     name: String,
     countmap: HashMap<String, f64>,
+    seriesmap: HashMap<String, Vec<f64>>,
     totalpoints: f64,
 }
 
@@ -93,9 +97,49 @@ fn parse_userpage(document: Document) -> UserInfo {
         .text()
         .parse().unwrap();
 
+    let js = document.find(Name("script"))
+        .map(|tag| tag.text())
+        .filter(|t| t.contains("progress_chart"))
+        .next().unwrap();
+
+    // Within the JS nodes we have to fish stuff out by regex.
+    // Firstly, if the text doesn't include "progress_chart"
+    // it's the wrong script node.
+
+    // We're looking for a bit of js like this:
+    //   series: [{
+    //    name: "Overall",
+    //    pointInterval: 86400000,
+    //    pointStart: 1506816000000,
+    //    data: [294.20000000000005, 0, 8.0, 57.6, 77.6, 88.00000000000001, 68.0, 45.5, 0]
+    //   }, {
+    //    name: "jp",
+    //    pointInterval: 86400000,
+    //    pointStart: 1506816000000,
+    //    data: [285.20000000000005, 0, 0, 51.6, 77.6, 83.00000000000001, 41.0, 21.0, 0]
+    //   }]
+    // which has one entry for Overall and one for each language. We assume the
+    // info is always per-day and just go for the data arrays.
+    let seriesnames = Regex::new(r#"name: "([^"]*)""#).unwrap()
+        .captures_iter(&*js)
+        .map(|caps| caps[1].to_string())
+        .collect::<Vec<_>>();
+
+    let dataarrays = Regex::new(r#"data: \[([^\]]*)\]"#).unwrap()
+        .captures_iter(&*js)
+        .map(|caps| caps[1].to_string())
+        .map(|ds| ds.split(",")
+             .map(|s| s.trim().parse::<f64>().unwrap())
+             .collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+
+    let seriesmap: HashMap<String, Vec<f64>> =
+        seriesnames.iter().cloned().zip(dataarrays).collect();
+
     UserInfo {
         name : String::from(username),
         countmap: countmap,
+        seriesmap: seriesmap,
         totalpoints : totalpoints,
     }
 }
@@ -131,5 +175,7 @@ mod tests {
         assert_eq!(user.countmap.len(), 10);
         let bookcount = user.countmap.get("Book").unwrap();
         assert!(bookcount == &91.0);
+        assert_eq!(user.seriesmap.len(), 4);
+        assert_eq!(user.seriesmap.get("jp").unwrap().len(), 9);
     }
 }
