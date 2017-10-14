@@ -24,6 +24,7 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::fs::File;
 use std::error::Error;
+use std::io::Write;
 
 fn parse_mainpage(document: Document) -> Vec<String> {
     // Parse the top level rankings page, the relevant part of which looks like
@@ -171,6 +172,22 @@ fn read_json(file: &File) -> Result<Vec<UserInfo>, Box<Error>> {
     Ok(users)
 }
 
+fn read_from_webpage() -> Result<Vec<UserInfo>, Box<Error>> {
+    let users = Vec::new();
+//    let mainpage = doc_from_url(whatever);
+//    let userids = parse_mainpage(mainpage);
+//    for uid in userids {
+//        let userpage = doc_from_url(whatever);
+//        users.insert(parse_userpage(userpage));
+//    }
+    Ok(users)
+}
+
+#[allow(unused)]
+fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>) {
+    // TODO
+}
+
 fn main() {
     let matches = clap_app!(tadoku_stats =>
                             (version: crate_version!())
@@ -181,6 +198,27 @@ fn main() {
                             (@arg writejson: --writejson [JSONFILE] conflicts_with[readjson results] "Don't print statistics, just write raw data to a json file (for later use with --readjson)")
     ).get_matches();
 
+    let users = if matches.is_present("readjson") {
+        let jsonfile = File::open(matches.value_of("readjson").unwrap()).unwrap();
+        read_json(&jsonfile)
+    } else {
+        read_from_webpage()
+    }.unwrap();
+
+    if matches.is_present("writejson") {
+        let jsonfile = File::create(matches.value_of("writejson").unwrap()).unwrap();
+        write_json(&jsonfile, &users).unwrap();
+        return;
+    }
+
+    let outfile = if matches.is_present("results") {
+        let filename = matches.value_of("results").unwrap();
+        Box::new(File::create(filename).unwrap()) as Box<Write>
+    } else {
+        Box::new(std::io::stdout()) as Box<Write>
+    };
+
+    print_stats(outfile, &users);
 }
 
 #[cfg(test)]
