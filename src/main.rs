@@ -10,6 +10,7 @@ extern crate select;
 extern crate regex;
 extern crate serde;
 extern crate serde_json;
+extern crate reqwest;
 
 #[macro_use]
 extern crate serde_derive;
@@ -20,6 +21,7 @@ extern crate clap;
 use select::document::Document;
 use select::predicate::{Predicate, Class, Name};
 use regex::Regex;
+use reqwest::Client;
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -172,14 +174,24 @@ fn read_json(file: &File) -> Result<Vec<UserInfo>, Box<Error>> {
     Ok(users)
 }
 
+fn doc_from_url(client: &Client, url: &str) -> Result<Document, Box<Error>> {
+    eprintln!{"Fetching page {}...", url};
+    let d = Document::from_read(client.get(url).send()?)?;
+    Ok(d)
+}
+
 fn read_from_webpage() -> Result<Vec<UserInfo>, Box<Error>> {
-    let users = Vec::new();
-//    let mainpage = doc_from_url(whatever);
-//    let userids = parse_mainpage(mainpage);
-//    for uid in userids {
-//        let userpage = doc_from_url(whatever);
-//        users.insert(parse_userpage(userpage));
-//    }
+    let mut users = Vec::new();
+    let client = Client::new();
+
+    let mainpage = doc_from_url(&client, "http://readmod.com/ranking")?;
+    eprintln!{"Parsing frontpage..."};
+    let userids = parse_mainpage(mainpage);
+    for uid in userids {
+        let userpage = doc_from_url(&client, &("http://readmod.com/users/".to_string() + &uid))?;
+        eprintln!{"Parsing user page..."};
+        users.push(parse_userpage(userpage));
+    }
     Ok(users)
 }
 
