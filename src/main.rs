@@ -14,6 +14,9 @@ extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
 
+#[macro_use]
+extern crate clap;
+
 use select::document::Document;
 use select::predicate::{Predicate, Class, Name};
 use regex::Regex;
@@ -169,7 +172,15 @@ fn read_json(file: &File) -> Result<Vec<UserInfo>, Box<Error>> {
 }
 
 fn main() {
-    println!("Hello, world!");
+    let matches = clap_app!(tadoku_stats =>
+                            (version: crate_version!())
+                            (author: crate_authors!())
+                            (about: "Print summary statistics for Tadoku contest")
+                            (@arg readjson: --readjson [JSONFILE] "Read data from json file rather than the website")
+                            (@arg results: --results [FILE] "Write summary statistics to file")
+                            (@arg writejson: --writejson [JSONFILE] conflicts_with[readjson results] "Don't print statistics, just write raw data to a json file (for later use with --readjson)")
+    ).get_matches();
+
 }
 
 #[cfg(test)]
