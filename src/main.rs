@@ -8,12 +8,19 @@
 
 extern crate select;
 extern crate regex;
+extern crate serde;
+extern crate serde_json;
+
+#[macro_use]
+extern crate serde_derive;
 
 use select::document::Document;
 use select::predicate::{Predicate, Class, Name};
 use regex::Regex;
 
 use std::collections::HashMap;
+use std::fs::File;
+use std::error::Error;
 
 fn parse_mainpage(document: Document) -> Vec<String> {
     // Parse the top level rankings page, the relevant part of which looks like
@@ -53,7 +60,7 @@ fn parse_mainpage(document: Document) -> Vec<String> {
     return users;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 struct UserInfo {
     name: String,
     countmap: HashMap<String, f64>,
@@ -144,6 +151,23 @@ fn parse_userpage(document: Document) -> UserInfo {
     }
 }
 
+// NB that serializing and deserializing can make tiny rounding errors
+// on the floating point data; for instance an f64 294.20000000000005 will end up
+// in the JSON as 294.20000000000007 and then read back as 294.2000000000001.
+// We don't care because we're going to round them all off anyway, and
+// besides the low bits are the result of rounding errors in the server
+// side software that produced the data we're parsing in the first place.
+
+fn write_json(file: &File, users: &Vec<UserInfo>) -> Result<(), Box<Error>> {
+    serde_json::to_writer(file, users)?;
+    Ok(())
+}
+
+fn read_json(file: &File) -> Result<Vec<UserInfo>, Box<Error>> {
+    let users = serde_json::from_reader(file)?;
+    Ok(users)
+}
+
 fn main() {
     println!("Hello, world!");
 }
@@ -151,10 +175,15 @@ fn main() {
 #[cfg(test)]
 mod tests {
     extern crate select;
+    extern crate tempfile;
     use select::document::Document;
+    use std::fs::File;
+    use std::io::{Seek, SeekFrom};
     // TODO can we just import everything from the root here?
     use parse_mainpage;
     use parse_userpage;
+    use write_json;
+    use read_json;
 
     #[test]
     fn test_parse_mainpage() {
@@ -177,5 +206,23 @@ mod tests {
         assert!(bookcount == &91.0);
         assert_eq!(user.seriesmap.len(), 4);
         assert_eq!(user.seriesmap.get("jp").unwrap().len(), 9);
+    }
+
+    #[test]
+    fn test_write_read_json() {
+        let document = Document::from(include_str!("userpage.html"));
+        let mut users = Vec::new();
+        users.push(parse_userpage(document));
+        let mut tmpfile: File = tempfile::tempfile().unwrap();
+        write_json(&tmpfile, &users).unwrap();
+        tmpfile.seek(SeekFrom::Start(0)).unwrap();
+        // To see the raw json for the test:
+        // Add use::stdio::Read to our dependencies, and:
+        //  let mut buf = String::new();
+        //  tmpfile.read_to_string(&mut buf).unwrap();
+        //  println!{"raw json: {}", buf};
+        let readusers = read_json(&tmpfile).unwrap();
+        assert_eq!(readusers.len(), users.len());
+        assert_eq!(readusers[0].name, users[0].name);
     }
 }
