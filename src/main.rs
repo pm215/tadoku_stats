@@ -27,6 +27,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::error::Error;
 use std::io::Write;
+use std::io::BufWriter;
 
 fn parse_mainpage(document: Document) -> Vec<String> {
     // Parse the top level rankings page, the relevant part of which looks like
@@ -195,9 +196,56 @@ fn read_from_webpage() -> Result<Vec<UserInfo>, Box<Error>> {
     Ok(users)
 }
 
-#[allow(unused)]
+fn print_table<W: Write, F>(ds: &mut BufWriter<W>, users: &Vec<UserInfo>, title: &str, maxentries: usize, keyfn: F)
+    where F: Fn(&UserInfo) -> f64
+{
+    // Sort this vector of integers according to the keyfn, taking account of
+    // the difficulties with sorting f64s.
+    let mut usridx = (0..users.len()).collect::<Vec<_>>();
+    let getv = |x: &usize| keyfn(&users[*x]);
+
+    write!(ds, "{}\n", title).unwrap();
+    usridx.sort_unstable_by(|a, b| getv(b).partial_cmp(&(getv(a))).unwrap());
+    for (i, u) in usridx.iter().enumerate() {
+        let v = getv(u);
+        if v < 0.01 || (maxentries != 0 && i >= maxentries) {
+            break;
+        }
+        write!(ds, "{} {} {:.2}\n", i + 1, users[*u].name, getv(u)).unwrap();
+    }
+    write!(ds, "\n").unwrap();
+}
+
 fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>) {
-    // TODO
+    let mut ds = BufWriter::new(dest);
+
+    let mut media = users.iter()
+        .flat_map(|u| u.countmap.keys())
+        .collect::<Vec<_>>();
+    media.sort();
+    media.dedup();
+
+    let mut languages = users.iter()
+        .flat_map(|u| u.seriesmap.keys())
+        .filter(|x| *x != "Overall")
+        .collect::<Vec<_>>();
+    languages.sort();
+    languages.dedup();
+
+    print_table(&mut ds, &users, "Overall rankings", 0, |u| u.totalpoints);
+
+    for m in media {
+        let title : String = m.clone() + &" rankings (raw pages, minutes, etc)";
+        print_table(&mut ds, &users, &title, 3, |u| *u.countmap.get(m).unwrap_or(&0.0));
+    }
+
+    for l in languages {
+        let title : String = l.clone() + &" rankings";
+        let emptyvec : Vec<f64> = Vec::new();
+        print_table(&mut ds, &users, &title, 10,
+                    |u| u.seriesmap.get(l).unwrap_or(&emptyvec).iter()
+                    .fold(0.0, |sum, x| sum + x));
+    }
 }
 
 fn main() {
