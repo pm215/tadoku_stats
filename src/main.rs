@@ -83,6 +83,14 @@ fn parse_userpage(document: Document) -> UserInfo {
     // TODO: maybe we should get the main page for each language instead?
     let username = document.find(Class("avatar")).next().unwrap().attr("alt").unwrap();
 
+    // Find the list of reading languages. This gets us a space-separated string
+    // with them all. (We only want it if there's just a single language.)
+    let langs = document.find(Class("info"))
+        .map(|tag| tag.text())
+        .filter(|t| t.starts_with("Reading language(s)"))
+        .next().unwrap()
+        .split_whitespace().skip(2).collect::<Vec<_>>().join(" ");
+
     let tablehead = document.find(Class("table-bordered").descendant(Name("thead"))).next().unwrap();
     let tablebody = document.find(Class("table-bordered").descendant(Name("tbody"))).next().unwrap();
     // Pull the category names out of the table head. We discard the first <th> (empty)
@@ -147,8 +155,16 @@ fn parse_userpage(document: Document) -> UserInfo {
              .collect::<Vec<_>>())
         .collect::<Vec<_>>();
 
-    let seriesmap: HashMap<String, Vec<f64>> =
+    let entry_0_copy = dataarrays[0].clone();
+
+    let mut seriesmap: HashMap<String, Vec<f64>> =
         seriesnames.iter().cloned().zip(dataarrays).collect();
+
+    if seriesnames.len() == 1 {
+        // Single-language user, add an entry for "lang" as well as the
+        // "Overall" one.
+        seriesmap.insert(langs, entry_0_copy);
+    }
 
     UserInfo {
         name : String::from(username),
