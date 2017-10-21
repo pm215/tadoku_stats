@@ -33,6 +33,10 @@ Anybody who didn't read anything in a category or language isn't listed, so if f
 
 The output is plain text with no attempt at table formatting.
 
+## Warning for Windows users
+
+The output file is printed with plain newline characters, not the Windows-standand CRLF sequence. Until this bug is fixed, Windows users should make sure they read the output with WordPad or some other editor that can handle Unix-style text files. (In particular, don't use Notepad, which can't, and will display everything as one long single line.)
+
 ## License
 
 This project is licensed under the GNU GPL, version 2, or at your option, any later version -- see the [COPYING](COPYING) file for details.
