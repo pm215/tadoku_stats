@@ -241,7 +241,7 @@ fn print_table<W: Write>(ds: &mut BufWriter<W>, title: &str, table: &ResultTable
     write!(ds, "{}\n", title).unwrap();
 
     for (i, &(name, value)) in table.iter().enumerate() {
-        write!(ds, "{} {} {:.2}\n", i + 1, name, value).unwrap();
+        write!(ds, "{}. {} {:.2}\n", i + 1, name, value).unwrap();
     }
     write!(ds, "\n").unwrap();
 }
