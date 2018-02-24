@@ -265,6 +265,23 @@ fn lang_table_title(l: &str, table: &ResultTable) -> String {
     }
 }
 
+// We have a preferred order for the language ranking tables:
+// jp en fr es de zh ru ko vi it pt el eo nl sv hr
+// with anything else in alpha order on the end
+fn lang_sort_idx(s: &str) -> Option<usize> {
+    let langlist = ["jp", "en", "fr", "es", "de", "zh", "ru","ko", "vi", "it", "pt", "el", "eo", "nl", "sv", "hr"];
+    langlist.iter().position(|&x| x == s)
+}
+
+fn lang_comparator(a: &&String, b: &&String) -> std::cmp::Ordering {
+    match (lang_sort_idx(a), lang_sort_idx(b)) {
+        (Some(aidx), Some(bidx)) => aidx.cmp(&bidx),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => a.cmp(&b),
+    }
+}
+
 fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>) {
     let mut ds = BufWriter::new(dest);
 
@@ -278,7 +295,7 @@ fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>) {
         .flat_map(|u| u.seriesmap.keys())
         .filter(|x| *x != "Overall")
         .collect::<Vec<_>>();
-    languages.sort();
+    languages.sort_by(lang_comparator);
     languages.dedup();
 
     {
