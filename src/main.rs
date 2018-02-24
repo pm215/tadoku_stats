@@ -11,6 +11,7 @@ extern crate regex;
 extern crate serde;
 extern crate serde_json;
 extern crate reqwest;
+extern crate isolang;
 
 #[macro_use]
 extern crate serde_derive;
@@ -22,6 +23,7 @@ use select::document::Document;
 use select::predicate::{Predicate, Class, Name};
 use regex::Regex;
 use reqwest::Client;
+use isolang::Language;
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -232,6 +234,17 @@ fn print_table<W: Write, F>(ds: &mut BufWriter<W>, users: &Vec<UserInfo>, title:
     write!(ds, "\n").unwrap();
 }
 
+fn langcode_to_name(code: &str) -> String {
+    // Return the full name of the language given its code.
+    // Annoyingly we have to special case Japanese because
+    // the Tadoku bot uses "jp" when the correct ISO 639-1
+    // code is "ja".
+    match code {
+        "jp" => "Japanese",
+        _ => Language::from_639_1(code).map_or("unidentified", |x| x.to_name())
+    }.to_string()
+}
+
 fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>) {
     let mut ds = BufWriter::new(dest);
 
@@ -256,7 +269,7 @@ fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>) {
     }
 
     for l in languages {
-        let title : String = l.clone() + &" rankings";
+        let title = format!("Top N {} ({}) readers", langcode_to_name(l), l);
         let emptyvec : Vec<f64> = Vec::new();
         print_table(&mut ds, &users, &title, 10,
                     |u| u.seriesmap.get(l).unwrap_or(&emptyvec).iter()
