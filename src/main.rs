@@ -257,6 +257,14 @@ fn langcode_to_name(code: &str) -> String {
     }.to_string()
 }
 
+fn lang_table_title(l: &str, table: &ResultTable) -> String {
+    // Pick a title for the language table
+    match table.len() {
+        1 => format!("Top {} ({}) reader", langcode_to_name(l), l),
+        _ => format!("Top {} {} ({}) readers", table.len(), langcode_to_name(l), l),
+    }
+}
+
 fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>) {
     let mut ds = BufWriter::new(dest);
 
@@ -285,11 +293,14 @@ fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>) {
     }
 
     for l in languages {
-        let title = format!("Top N {} ({}) readers", langcode_to_name(l), l);
         let emptyvec : Vec<f64> = Vec::new();
         let table = get_table(&users, 10,
                               |u| u.seriesmap.get(l).unwrap_or(&emptyvec).iter()
                               .fold(0.0, |sum, x| sum + x));
+        if table.len() == 0 {
+            continue;
+        }
+        let title = lang_table_title(l, &table);
         print_table(&mut ds, &title, &table);
     }
 }
