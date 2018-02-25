@@ -214,22 +214,34 @@ fn read_from_webpage() -> Result<Vec<UserInfo>, Box<Error>> {
     Ok(users)
 }
 
-fn print_table<W: Write, F>(ds: &mut BufWriter<W>, users: &Vec<UserInfo>, title: &str, maxentries: usize, keyfn: F)
+type ResultTable<'a> = Vec<(&'a String, f64)>;
+
+fn get_table<F>(users: &Vec<UserInfo>, maxentries: usize, keyfn: F) -> ResultTable
     where F: Fn(&UserInfo) -> f64
-{
+{ 
     // Sort this vector of integers according to the keyfn, taking account of
     // the difficulties with sorting f64s.
     let mut usridx = (0..users.len()).collect::<Vec<_>>();
     let getv = |x: &usize| keyfn(&users[*x]);
-
-    write!(ds, "{}\n", title).unwrap();
     usridx.sort_unstable_by(|a, b| getv(b).partial_cmp(&(getv(a))).unwrap());
-    for (i, u) in usridx.iter().enumerate() {
-        let v = getv(u);
-        if v < 0.01 || (maxentries != 0 && i >= maxentries) {
-            break;
-        }
-        write!(ds, "{} {} {:.2}\n", i + 1, users[*u].name, getv(u)).unwrap();
+    if maxentries != 0 {
+        usridx.truncate(maxentries);
+    }
+    usridx.retain(|x| getv(x) >= 0.01);
+
+    let mut tablevec = Vec::new();
+
+    for u in usridx {
+        tablevec.push((&users[u].name, getv(&u)));
+    }
+    tablevec
+}
+
+fn print_table<W: Write>(ds: &mut BufWriter<W>, title: &str, table: &ResultTable) {
+    write!(ds, "{}\n", title).unwrap();
+
+    for (i, &(name, value)) in table.iter().enumerate() {
+        write!(ds, "{} {} {:.2}\n", i + 1, name, value).unwrap();
     }
     write!(ds, "\n").unwrap();
 }
@@ -261,19 +273,24 @@ fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>) {
     languages.sort();
     languages.dedup();
 
-    print_table(&mut ds, &users, "Overall rankings", 0, |u| u.totalpoints);
+    {
+        let table = get_table(&users, 0, |u| u.totalpoints);
+        print_table(&mut ds, "Overall rankings", &table);
+    }
 
     for m in media {
         let title : String = m.clone() + &" rankings (raw pages, minutes, etc)";
-        print_table(&mut ds, &users, &title, 3, |u| *u.countmap.get(m).unwrap_or(&0.0));
+        let table = get_table(&users, 3, |u| *u.countmap.get(m).unwrap_or(&0.0));
+        print_table(&mut ds, &title, &table);
     }
 
     for l in languages {
         let title = format!("Top N {} ({}) readers", langcode_to_name(l), l);
         let emptyvec : Vec<f64> = Vec::new();
-        print_table(&mut ds, &users, &title, 10,
-                    |u| u.seriesmap.get(l).unwrap_or(&emptyvec).iter()
-                    .fold(0.0, |sum, x| sum + x));
+        let table = get_table(&users, 10,
+                              |u| u.seriesmap.get(l).unwrap_or(&emptyvec).iter()
+                              .fold(0.0, |sum, x| sum + x));
+        print_table(&mut ds, &title, &table);
     }
 }
 
