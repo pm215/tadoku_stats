@@ -220,6 +220,16 @@ fn read_from_webpage() -> Result<Vec<UserInfo>, Box<Error>> {
     Ok(users)
 }
 
+fn format_count(count: f64) -> String {
+    // Our desired format has two decimal places, except that if
+    // the last of those two decimals is zero we suppress it.
+    let mut s = format!("{:.2}", count);
+    if s.ends_with("0") {
+        s.pop();
+    }
+    s
+}
+
 type ResultTable<'a> = Vec<(&'a String, f64)>;
 
 fn get_table<F>(users: &Vec<UserInfo>, maxentries: usize, keyfn: F) -> ResultTable
@@ -252,7 +262,7 @@ fn print_table<W: Write>(ds: &mut BufWriter<W>, title: &str, table: &ResultTable
     let brtag = if html { "<br />" } else { "" };
 
     for (i, &(name, value)) in table.iter().enumerate() {
-        write!(ds, "{}. {} {:.2}{}\n", i + 1, name, value, brtag).unwrap();
+        write!(ds, "{}. {} {}{}\n", i + 1, name, format_count(value), brtag).unwrap();
     }
     if html {
         write!(ds, "</p>\n").unwrap();
@@ -360,13 +370,13 @@ fn print_brief_medium_table<W: Write>(ds: &mut BufWriter<W>, m: &str, table: &Re
     match table.get(1) {
         Some(&(name, value)) =>
             write!(ds, "{}{} is our top {} with {} {}.\n", ulli,
-                   name, medium_actor(m), value, medium_description(m)).unwrap(),
+                   name, medium_actor(m), format_count(value), medium_description(m)).unwrap(),
         None => return,
     };
     match table.get(2) {
         Some(&(name, value)) =>
             write!(ds, "{}Honorable mention goes to {} with {} {} recorded.\n{}{}\n",
-                   ulli, name, value, medium_units(m), closeulli, closeulli).unwrap(),
+                   ulli, name, format_count(value), medium_units(m), closeulli, closeulli).unwrap(),
         None => write!(ds, "{}\n", closeulli).unwrap(),
     };
 }
