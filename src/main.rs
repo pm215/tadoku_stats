@@ -243,13 +243,22 @@ fn get_table<F>(users: &Vec<UserInfo>, maxentries: usize, keyfn: F) -> ResultTab
     tablevec
 }
 
-fn print_table<W: Write>(ds: &mut BufWriter<W>, title: &str, table: &ResultTable) {
-    write!(ds, "{}\n", title).unwrap();
+fn print_table<W: Write>(ds: &mut BufWriter<W>, title: &str, table: &ResultTable, html: bool) {
+    if html {
+        write!(ds, "<p><h5>{}</h5>\n<p>\n", title).unwrap();
+    } else {
+        write!(ds, "{}\n", title).unwrap();
+    }
+    let brtag = if html { "<br />" } else { "" };
 
     for (i, &(name, value)) in table.iter().enumerate() {
-        write!(ds, "{}. {} {:.2}\n", i + 1, name, value).unwrap();
+        write!(ds, "{}. {} {:.2}{}\n", i + 1, name, value, brtag).unwrap();
     }
-    write!(ds, "\n").unwrap();
+    if html {
+        write!(ds, "</p>\n").unwrap();
+    } else {
+        write!(ds, "\n").unwrap();
+    }
 }
 
 fn langcode_to_name(code: &str) -> String {
@@ -341,24 +350,28 @@ fn medium_units(m: &str) -> &'static str {
     MEDIUM_UNITS.get(m).unwrap_or(&"raw units")
 }
 
-fn print_brief_medium_table<W: Write>(ds: &mut BufWriter<W>, m: &str, table: &ResultTable) {
+fn print_brief_medium_table<W: Write>(ds: &mut BufWriter<W>, m: &str, table: &ResultTable, html: bool) {
     // Just print the top two contenders for the medium, in a
     // conversational format.
+    // For HTML we print the second one as a list nested inside the first,
+    // which typically makes it render as indented.
+    let ulli = if html { "<ul><li>" } else { "" };
+    let closeulli = if html { "</ul></li>" } else { "</ul></li>" };
     match table.get(1) {
         Some(&(name, value)) =>
-            write!(ds, "{} is our top {} with {} {}.\n",
+            write!(ds, "{}{} is our top {} with {} {}.\n", ulli,
                    name, medium_actor(m), value, medium_description(m)).unwrap(),
         None => return,
     };
     match table.get(2) {
         Some(&(name, value)) =>
-            write!(ds, "Honorable mention goes to {} with {} {} recorded.\n\n",
-                   name, value, medium_units(m)).unwrap(),
-        None => write!(ds, "\n").unwrap(),
+            write!(ds, "{}Honorable mention goes to {} with {} {} recorded.\n{}{}\n",
+                   ulli, name, value, medium_units(m), closeulli, closeulli).unwrap(),
+        None => write!(ds, "{}\n", closeulli).unwrap(),
     };
 }
 
-fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>, brief: bool) {
+fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>, brief: bool, html: bool) {
     let mut ds = BufWriter::new(dest);
 
     let mut media = users.iter()
@@ -376,7 +389,11 @@ fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>, brief: bool) {
 
     {
         let table = get_table(&users, 0, |u| u.totalpoints);
-        print_table(&mut ds, "Overall rankings", &table);
+        print_table(&mut ds, "Overall rankings", &table, html);
+    }
+
+    if html {
+        write!(ds, "<h4>MEDIUM CHAMPS</h4>\n\n").unwrap();
     }
 
     for m in media {
@@ -386,10 +403,10 @@ fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>, brief: bool) {
         }
 
         if brief {
-            print_brief_medium_table(&mut ds, m, &table);
+            print_brief_medium_table(&mut ds, m, &table, html);
         } else {
             let title = format!("{} rankings ({})", m, medium_description(m));
-            print_table(&mut ds, &title, &table);
+            print_table(&mut ds, &title, &table, html);
         }
     }
 
@@ -402,7 +419,7 @@ fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>, brief: bool) {
             continue;
         }
         let title = lang_table_title(l, &table);
-        print_table(&mut ds, &title, &table);
+        print_table(&mut ds, &title, &table, html);
     }
 }
 
@@ -415,6 +432,7 @@ fn main() {
                             (@arg results: --results [FILE] "Write summary statistics to file")
                             (@arg writejson: --writejson [JSONFILE] conflicts_with[readjson results] "Don't print statistics, just write raw data to a json file (for later use with --readjson)")
                             (@arg brief: --brief "Print only brief (top/honorable mention) summaries for each medium rather than full tables")
+                            (@arg html: --html "Print the output as a fragment of HTML")
     ).get_matches();
 
     let users = if matches.is_present("readjson") {
@@ -437,7 +455,7 @@ fn main() {
         Box::new(std::io::stdout()) as Box<Write>
     };
 
-    print_stats(outfile, &users, matches.is_present("brief"));
+    print_stats(outfile, &users, matches.is_present("brief"), matches.is_present("html"));
 }
 
 #[cfg(test)]
