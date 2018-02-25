@@ -19,6 +19,12 @@ extern crate serde_derive;
 #[macro_use]
 extern crate clap;
 
+#[macro_use]
+extern crate maplit;
+
+#[macro_use]
+extern crate lazy_static;
+
 use select::document::Document;
 use select::predicate::{Predicate, Class, Name};
 use regex::Regex;
@@ -282,6 +288,25 @@ fn lang_comparator(a: &&String, b: &&String) -> std::cmp::Ordering {
     }
 }
 
+lazy_static! {
+    static ref MEDIUM_DESCRIPTION: HashMap<&'static str, &'static str> = hashmap!{
+        "Book" => "book pages read",
+        "Full Game" => "full game screens read",
+        "Game" => "game screens read",
+        "Lyrics" => "lyrics read",
+        "Manga" => "manga pages read",
+        "Net" => "net pages read",
+        "News" => "news articles read",
+        "Nico" => "nico watched",
+        "Sentences" => "sentences read",
+        "Subs" => "minutes of subs watched",
+    };
+}
+
+fn medium_description(m: &str) -> &'static str {
+    MEDIUM_DESCRIPTION.get(m).unwrap_or(&"raw counts")
+}
+
 fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>) {
     let mut ds = BufWriter::new(dest);
 
@@ -304,7 +329,7 @@ fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>) {
     }
 
     for m in media {
-        let title : String = m.clone() + &" rankings (raw pages, minutes, etc)";
+        let title = format!("{} rankings ({})", m, medium_description(m));
         let table = get_table(&users, 3, |u| *u.countmap.get(m).unwrap_or(&0.0));
         print_table(&mut ds, &title, &table);
     }
