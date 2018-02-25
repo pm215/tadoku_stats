@@ -24,6 +24,7 @@ This should be handy for archiving statistics from each contest so that if we ad
 The following options modify the output produced:
 * `--brief` : prints the per-medium results in a brief "first place + honorable mention" format, rather than a top-three table.
 * `--html` : prints the output as an HTML fragment suitable for use in a blog post. Note that this doesn't produce a complete valid HTML document!
+* `--blogpost` : a convenience option that enables all the options to produce the preferred format for end-of-round Tadoku blogposts. Currently this is equivalent to --blogpost --html.
 
 ## Output
 

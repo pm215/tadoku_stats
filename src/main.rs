@@ -433,6 +433,7 @@ fn main() {
                             (@arg writejson: --writejson [JSONFILE] conflicts_with[readjson results] "Don't print statistics, just write raw data to a json file (for later use with --readjson)")
                             (@arg brief: --brief "Print only brief (top/honorable mention) summaries for each medium rather than full tables")
                             (@arg html: --html "Print the output as a fragment of HTML")
+                            (@arg blogpost: --blogpost "Print in end-of-round blogpost format")
     ).get_matches();
 
     let users = if matches.is_present("readjson") {
@@ -455,7 +456,10 @@ fn main() {
         Box::new(std::io::stdout()) as Box<Write>
     };
 
-    print_stats(outfile, &users, matches.is_present("brief"), matches.is_present("html"));
+    let brief = matches.is_present("brief") || matches.is_present("blogpost");
+    let html = matches.is_present("html") || matches.is_present("blogpost");
+
+    print_stats(outfile, &users, brief, html);
 }
 
 #[cfg(test)]
