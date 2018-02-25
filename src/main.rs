@@ -301,13 +301,64 @@ lazy_static! {
         "Sentences" => "sentences read",
         "Subs" => "minutes of subs watched",
     };
+    static ref MEDIUM_ACTOR: HashMap<&'static str, &'static str> = hashmap!{
+        "Book" => "book reader",
+        "Full Game" => "full-game reader",
+        "Game" => "game reader",
+        "Lyrics" => "lyric reader",
+        "Manga" => "manga reader",
+        "Net" => "net reader",
+        "News" => "news reader",
+        "Nico" => "nico reader/watcher",
+        "Sentences" => "sentence reader",
+        "Subs" => "subs reader/watcher",
+    };
+    static ref MEDIUM_UNITS: HashMap<&'static str, &'static str> = hashmap!{
+        "Book" => "pages",
+        "Full Game" => "screens",
+        "Game" => "screens",
+        "Lyrics" => "lyrics",
+        "Manga" => "pages",
+        "Net" => "pages",
+        "News" => "articles",
+        "Nico" => "nico",
+        "Sentences" => "sentences",
+        "Subs" => "minutes",
+    };
 }
 
+// The default cases could be prettier if we incorporated the medium name,
+// but in practice they'll never be used so it's not worth the effort.
 fn medium_description(m: &str) -> &'static str {
     MEDIUM_DESCRIPTION.get(m).unwrap_or(&"raw counts")
 }
 
-fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>) {
+fn medium_actor(m: &str) -> &'static str {
+    MEDIUM_ACTOR.get(m).unwrap_or(&"thing reader")
+}
+
+fn medium_units(m: &str) -> &'static str {
+    MEDIUM_UNITS.get(m).unwrap_or(&"raw units")
+}
+
+fn print_brief_medium_table<W: Write>(ds: &mut BufWriter<W>, m: &str, table: &ResultTable) {
+    // Just print the top two contenders for the medium, in a
+    // conversational format.
+    match table.get(1) {
+        Some(&(name, value)) =>
+            write!(ds, "{} is our top {} with {} {}.\n",
+                   name, medium_actor(m), value, medium_description(m)).unwrap(),
+        None => return,
+    };
+    match table.get(2) {
+        Some(&(name, value)) =>
+            write!(ds, "Honorable mention goes to {} with {} {} recorded.\n\n",
+                   name, value, medium_units(m)).unwrap(),
+        None => write!(ds, "\n").unwrap(),
+    };
+}
+
+fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>, brief: bool) {
     let mut ds = BufWriter::new(dest);
 
     let mut media = users.iter()
@@ -329,9 +380,17 @@ fn print_stats(dest: Box<Write>, users: &Vec<UserInfo>) {
     }
 
     for m in media {
-        let title = format!("{} rankings ({})", m, medium_description(m));
         let table = get_table(&users, 3, |u| *u.countmap.get(m).unwrap_or(&0.0));
-        print_table(&mut ds, &title, &table);
+        if table.len() == 0 {
+            continue;
+        }
+
+        if brief {
+            print_brief_medium_table(&mut ds, m, &table);
+        } else {
+            let title = format!("{} rankings ({})", m, medium_description(m));
+            print_table(&mut ds, &title, &table);
+        }
     }
 
     for l in languages {
@@ -355,6 +414,7 @@ fn main() {
                             (@arg readjson: --readjson [JSONFILE] "Read data from json file rather than the website")
                             (@arg results: --results [FILE] "Write summary statistics to file")
                             (@arg writejson: --writejson [JSONFILE] conflicts_with[readjson results] "Don't print statistics, just write raw data to a json file (for later use with --readjson)")
+                            (@arg brief: --brief "Print only brief (top/honorable mention) summaries for each medium rather than full tables")
     ).get_matches();
 
     let users = if matches.is_present("readjson") {
@@ -377,7 +437,7 @@ fn main() {
         Box::new(std::io::stdout()) as Box<Write>
     };
 
-    print_stats(outfile, &users);
+    print_stats(outfile, &users, matches.is_present("brief"));
 }
 
 #[cfg(test)]

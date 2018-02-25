@@ -21,6 +21,9 @@ tadoku_stats --readjson tadoku.json --output stats.txt
 
 This should be handy for archiving statistics from each contest so that if we add more interesting analysis later we can run it on the old data.
 
+The following options modify the output produced:
+* `--brief` : prints the per-medium results in a brief "first place + honorable mention" format, rather than a top-three table.
+
 ## Output
 
 The program prints:
