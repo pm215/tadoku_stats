@@ -366,7 +366,7 @@ fn print_brief_medium_table<W: Write>(ds: &mut BufWriter<W>, m: &str, table: &Re
     // For HTML we print the second one as a list nested inside the first,
     // which typically makes it render as indented.
     let ulli = if html { "<ul><li>" } else { "" };
-    let closeulli = if html { "</ul></li>" } else { "</ul></li>" };
+    let closeulli = if html { "</ul></li>" } else { "" };
     match table.get(0) {
         Some(&(name, value)) =>
             write!(ds, "{}{} is our top {} with {} {}.\n", ulli,
