@@ -367,13 +367,13 @@ fn print_brief_medium_table<W: Write>(ds: &mut BufWriter<W>, m: &str, table: &Re
     // which typically makes it render as indented.
     let ulli = if html { "<ul><li>" } else { "" };
     let closeulli = if html { "</ul></li>" } else { "</ul></li>" };
-    match table.get(1) {
+    match table.get(0) {
         Some(&(name, value)) =>
             write!(ds, "{}{} is our top {} with {} {}.\n", ulli,
                    name, medium_actor(m), format_count(value), medium_description(m)).unwrap(),
         None => return,
     };
-    match table.get(2) {
+    match table.get(1) {
         Some(&(name, value)) =>
             write!(ds, "{}Honorable mention goes to {} with {} {} recorded.\n{}{}\n",
                    ulli, name, format_count(value), medium_units(m), closeulli, closeulli).unwrap(),
