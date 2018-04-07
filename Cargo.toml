@@ -1,6 +1,6 @@
 [package]
 name = "tadoku_stats"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Peter Maydell <pmaydell@chiark.greenend.org.uk>"]
 
 [dependencies]

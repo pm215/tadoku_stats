@@ -820,7 +820,7 @@ dependencies = [
 
 [[package]]
 name = "tadoku_stats"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "clap 2.26.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "isolang 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
